@@ -1,2 +1,2 @@
-# 2021ICT124_Bioinfromatic_ICA3
+# 2021ICT124_Bioinfromatics_ICA3
 Bioinformatics ICA 3
