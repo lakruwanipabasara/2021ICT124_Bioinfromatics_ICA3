@@ -104,4 +104,15 @@ dir.create(here("figures"), showWarnings = FALSE)
 ggsave(here("figures", "nucleotide_composition.png"), p1, width = 8, height = 5, dpi = 300)
 p1
 ```
+```{r}
+gc_by_codon <- function(s) {
+  ch <- strsplit(as.character(s), "")[[1]]
+  pos <- rep(1:3, length.out = length(ch))
+  sapply(1:3, function(p) mean(ch[pos == p] %in% c("G", "C")) * 100)
+}
+gc3 <- t(sapply(seqs, gc_by_codon)) %>% as.data.frame() %>%
+  setNames(c("codon1", "codon2", "codon3")) %>% rownames_to_column("id")
+gc3
+write_csv(gc3, here("results", "gc_by_codon_position.csv"))
+```
 
