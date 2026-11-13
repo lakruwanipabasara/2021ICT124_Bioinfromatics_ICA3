@@ -65,3 +65,25 @@ length(seqs)
 names(seqs)
 width(seqs)
 ```
+## 3. Quality control
+
+Summarise each sequence (length, base composition, GC content) and check for duplicates.
+
+```{r qc}
+qc <- tibble(
+  id        = names(seqs),
+  species   = gsub("_", " ", sub("_[^_]+$", "", names(seqs))),
+  accession = sub("^.*_", "", names(seqs)),
+  length    = width(seqs),
+  A  = as.numeric(letterFrequency(seqs, "A", as.prob = TRUE)) * 100,
+  C  = as.numeric(letterFrequency(seqs, "C", as.prob = TRUE)) * 100,
+  G  = as.numeric(letterFrequency(seqs, "G", as.prob = TRUE)) * 100,
+  T  = as.numeric(letterFrequency(seqs, "T", as.prob = TRUE)) * 100,
+  gc = as.numeric(letterFrequency(seqs, "GC", as.prob = TRUE)) * 100
+)
+qc
+
+sum(duplicated(as.character(seqs)))   # number of identical sequences
+write_csv(qc, here("results", "sequence_summary.csv"))
+```
+
