@@ -86,4 +86,22 @@ qc
 sum(duplicated(as.character(seqs)))   # number of identical sequences
 write_csv(qc, here("results", "sequence_summary.csv"))
 ```
+```{r}
+library(tidyr)
+
+plot_df <- qc |>
+  group_by(species) |>
+  summarise(across(c(A, C, G, T), mean)) |>
+  pivot_longer(-species, names_to = "Base", values_to = "Percent")
+
+p1 <- ggplot(plot_df, aes(species, Percent, fill = Base)) +
+  geom_col(position = "dodge") +
+  labs(title = "Nucleotide composition of CYTB by species", x = NULL, y = "Percentage (%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+dir.create(here("figures"), showWarnings = FALSE)
+ggsave(here("figures", "nucleotide_composition.png"), p1, width = 8, height = 5, dpi = 300)
+p1
+```
 
