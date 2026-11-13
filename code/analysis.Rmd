@@ -1,0 +1,67 @@
+---
+title: "Comparative CYTB sequence analysis of domestic and wild cats"
+author: "2021ICT124"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+## 1. Setup
+
+Load the packages and create the output folders.
+
+```{r packages}
+library(tidyverse); library(rentrez); library(Biostrings)
+library(msa); library(ape); library(phangorn); library(pheatmap); library(here)
+
+set.seed(42)   # reproducibility
+for (d in c("data", "figures", "results")) dir.create(here(d), showWarnings = FALSE)
+```
+
+## 2. Download CYTB sequences from NCBI
+
+Search GenBank for each species, keep only full-length sequences with A/C/G/T bases and no premature stop codons, and save them as a FASTA file.
+
+```{r download}
+species  <- c("Felis catus", "Felis silvestris", "Panthera leo",
+              "Panthera tigris", "Puma concolor")
+outgroup <- "Canis lupus"   # dog, used later to root the tree
+
+fetch_cytb <- function(sp, n = 2) {
+  term <- sprintf('"%s"[Organism] AND cytb[Gene] AND 1100:1200[SLEN]', sp)
+  ids  <- entrez_search(db = "nuccore", term = term, retmax = 30)$ids
+  Sys.sleep(0.5)
+  if (length(ids) == 0) return(NULL)
+  fa  <- entrez_fetch(db = "nuccore", id = ids, rettype = "fasta")
+  tmp <- tempfile(fileext = ".fasta"); writeLines(fa, tmp)
+  s   <- readDNAStringSet(tmp)
+
+  # keep full-length sequences with only A/C/G/T
+  acgt <- rowSums(letterFrequency(s, c("A", "C", "G", "T")))
+  s <- s[width(s) >= 1130 & width(s) <= 1145 & acgt == width(s)]
+
+  # drop sequences with premature stop codons (vertebrate mitochondrial code)
+  prot <- translate(s, genetic.code = getGeneticCode("SGC1"))
+  s <- s[!grepl("\\*.", as.character(prot))]
+
+  s <- head(s, n)
+  if (length(s) == 0) return(NULL)
+  names(s) <- paste0(gsub(" ", "_", sp), "_", sub("\\..*", "", sub(" .*", "", names(s))))
+  s
+}
+
+seq_list <- lapply(species, fetch_cytb, n = 2)
+seq_list <- c(seq_list, list(fetch_cytb(outgroup, n = 1)))
+seqs <- do.call(c, seq_list[!sapply(seq_list, is.null)])
+
+writeXStringSet(seqs, here("data", "felid_cytb_sequences.fasta"))
+length(seqs)
+names(seqs)
+width(seqs)
+```
