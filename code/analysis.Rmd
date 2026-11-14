@@ -157,3 +157,42 @@ p_codon <- tibble(codon_position = factor(codon_pos[variable])) %>%
 p_codon
 ggsave(here("figures", "variable_sites_codon.png"), p_codon, width = 5, height = 3.5, dpi = 300)
 ```
+```{r}
+prot <- translate(seqs, genetic.code = getGeneticCode("SGC1"))   # vertebrate mitochondrial code
+pm <- do.call(rbind, strsplit(as.character(prot), ""))
+rownames(pm) <- names(prot)
+pm_f <- pm[!grepl("^Canis", rownames(pm)), ]
+aa_var <- sum(apply(pm_f, 2, function(x) length(unique(x)) > 1))
+c(protein_length = ncol(pm_f), variable_amino_acids = aa_var)
+```
+```{r}
+d_raw <- as.matrix(dist.dna(dbin, model = "raw"))   # proportion of differing sites
+ident <- (1 - d_raw) * 100                           # % identity
+write.csv(round(ident, 2), here("results", "percent_identity.csv"))
+
+pheatmap(ident, display_numbers = TRUE, number_format = "%.1f",
+         filename = here("figures", "identity_heatmap.png"), width = 8, height = 7)
+
+# Domestic cat vs every other sequence
+ref <- grep("^Felis_catus", rownames(ident), value = TRUE)[1]
+tibble(comparison = colnames(ident), identity = ident[ref, ]) %>%
+  filter(comparison != ref) %>% arrange(desc(identity))
+```
+```{r}
+og <- grep("^Canis", rownames(m), value = TRUE)
+nj_fun <- function(x) root(nj(dist.dna(x, model = "K80")), outgroup = og, resolve.root = TRUE)
+
+tree_nj <- nj_fun(dbin)
+bs_nj   <- boot.phylo(tree_nj, dbin, nj_fun, B = 500, rooted = TRUE)
+
+png(here("figures", "tree_nj.png"), 2000, 1600, res = 300)
+plot(ladderize(tree_nj), cex = 0.7, no.margin = FALSE, main = "Neighbour-joining tree (K80)")
+nodelabels(round(bs_nj / 5), cex = 0.6, frame = "none", adj = c(1.1, -0.4))   # % of 500
+add.scale.bar()
+dev.off()
+write.tree(tree_nj, here("results", "tree_nj.nwk"))
+
+# Show it in the notebook too
+plot(ladderize(tree_nj), cex = 0.7, main = "Neighbour-joining tree (K80)")
+nodelabels(round(bs_nj / 5), cex = 0.6, frame = "none", adj = c(1.1, -0.4))
+```
