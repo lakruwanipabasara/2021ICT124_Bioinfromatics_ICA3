@@ -115,4 +115,45 @@ gc3 <- t(sapply(seqs, gc_by_codon)) %>% as.data.frame() %>%
 gc3
 write_csv(gc3, here("results", "gc_by_codon_position.csv"))
 ```
+```{r}
+library(msa)
+library(ape)
 
+aln <- msa(seqs, method = "ClustalW")
+dbin <- msaConvert(aln, type = "ape::DNAbin")
+m <- as.character(as.matrix(dbin))
+
+# Felids only (exclude the outgroup) for within-family variation
+felid <- m[!grepl("^Canis", rownames(m)), ]
+
+# Per-site conservation = fraction of sequences sharing the commonest base
+cons <- apply(felid, 2, function(x) max(table(x)) / length(x))
+variable <- cons < 1
+c(alignment_length = ncol(felid),
+  variable_sites   = sum(variable),
+  conserved_sites  = sum(!variable))
+
+# Sliding-window conservation (30 bp)
+win <- as.numeric(stats::filter(cons, rep(1/30, 30), sides = 2))
+p_cons <- ggplot(tibble(pos = seq_along(win), conservation = win),
+                 aes(pos, conservation)) +
+  geom_line() +
+  labs(x = "Alignment position (bp)", y = "Conservation (30-bp window)") +
+  theme_minimal()
+p_cons
+ggsave(here("figures", "conservation.png"), p_cons, width = 7, height = 3.5, dpi = 300)
+```
+```{r}
+# Variable sites by codon position (valid: alignment has no gaps and starts at position 1)
+codon_pos <- ((seq_along(variable) - 1) %% 3) + 1
+table(codon_pos[variable])
+
+p_codon <- tibble(codon_position = factor(codon_pos[variable])) %>%
+  count(codon_position) %>%
+  ggplot(aes(codon_position, n)) +
+  geom_col(fill = "steelblue") +
+  labs(x = "Codon position", y = "Variable sites") +
+  theme_minimal()
+p_codon
+ggsave(here("figures", "variable_sites_codon.png"), p_codon, width = 5, height = 3.5, dpi = 300)
+```
